@@ -1,0 +1,55 @@
+# Multi-stage Dockerfile for Node.js/TypeScript applications
+# Optimized for Next.js with standalone build output
+
+# Base stage with Node.js 20 on Alpine Linux
+FROM node:20-alpine AS base
+
+# Dependencies stage - install and cache node_modules
+FROM base AS deps
+# Install libc6-compat for Next.js compatibility
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+# Copy package files for dependency installation
+COPY package.json package-lock.json* ./
+# Install dependencies with npm ci for faster, reliable builds
+RUN npm ci
+
+# Builder stage - build the application
+FROM base AS builder
+WORKDIR /app
+# Copy cached node_modules from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+# Copy source code
+COPY . .
+# Copy environment file (assuming .env.sample exists)
+COPY .env.sample .env
+# Disable Next.js telemetry
+ENV NEXT_TELEMETRY_DISABLED=1
+# Set production environment for build
+ENV NODE_ENV=production
+# Build the application
+RUN npm run build
+
+# Production runner stage - minimal runtime image
+FROM base AS runner
+WORKDIR /app
+# Set production environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+# Copy public assets
+COPY --from=builder /app/public ./public
+# Create .next directory
+RUN mkdir .next
+# Copy standalone build output
+COPY --from=builder /app/.next/standalone ./
+# Copy static assets
+COPY --from=builder /app/.next/static ./.next/static
+# Copy environment files
+COPY --from=builder /app/.env* ./
+# Expose port 3000
+EXPOSE 3000
+# Set default port and hostname
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+# Start the application
+CMD ["node", "server.js"]

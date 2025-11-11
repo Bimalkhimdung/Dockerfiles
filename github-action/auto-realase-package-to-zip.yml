@@ -1,45 +1,63 @@
+# GitHub Actions Workflow: Build and Publish Go Application on Release
+# Triggers on release publication to build, package, and upload Go binaries
+
 name: Build and Publish Docker Image on Release
+
+# Trigger on release publication
 on:
   release:
     types: [published]
+
 jobs:
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
+    # Required permissions for writing to repository and packages
     permissions:
-      contents: write  
+      contents: write
       packages: write
     steps:
+      # Checkout the repository code
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
+      # Set up Go environment
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21' 
-      
+          go-version: '1.21'
+
+      # Set up Docker Buildx for advanced build features
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
+      # Authenticate with GitHub Container Registry
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build the Go application using Makefile
       - name: Build with Makefile
         run: |
+           # Configure Git for private repositories
            git config --global url."https://${{ secrets.GIT_USERNAME }}:${{ secrets.GIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+           # Set Go private modules
            go env -w GOPRIVATE=github.com/<repo_url>/*
            export GIT_TOKEN=${{ secrets.GIT_TOKEN }}
            export GOPRIVATE=github.com/treeleaftech
-           make build 
-      
+           # Execute build via Makefile
+           make build
+
+      # Create a ZIP archive of the built application
       - name: Zip the release bundle
         run: |
           cp -r bin/<go_app_name> .
           zip <go_app_name>.zip <go_app_name> config.yaml
-  
+
+      # Upload the ZIP file as a release asset
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')

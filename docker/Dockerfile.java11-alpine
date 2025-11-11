@@ -1,0 +1,49 @@
+# Multi-stage Dockerfile for Java 11 applications on Alpine Linux
+# Includes gRPC tools and glibc compatibility for broader compatibility
+
+FROM alpine:latest
+
+# Set Java home environment variable
+ENV JAVA_HOME="/usr/lib/jvm/default-jvm/"
+
+# Install OpenJDK 11
+RUN apk add openjdk11
+
+# Add Java binaries to PATH
+ENV PATH=$PATH:${JAVA_HOME}/bin
+
+# Environment variables for glibc and locale settings
+ENV GLIBC_REPO=https://github.com/sgerrand/alpine-pkg-glibc \
+    GLIBC_VERSION=2.28-r0 \
+    LANG=C.UTF-8
+
+# Install gRPC health probe for Kubernetes health checking
+RUN GRPC_HEALTH_PROBE_VERSION=v0.3.2 && \
+    wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
+    chmod +x /bin/grpc_health_probe
+
+# Install Protocol Buffers compiler and gRPC Java plugin
+RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.4/protoc-3.11.4-linux-x86_64.zip && \
+    unzip protoc-3.11.4-linux-x86_64.zip && \
+    mv bin/protoc /usr/local/bin/protoc && \
+    wget https://repo1.maven.org/maven2/io/grpc/protoc-gen-grpc-java/1.28.1/protoc-gen-grpc-java-1.28.1-linux-x86_64.exe && \
+    chmod +x protoc-gen-grpc-java-1.28.1-linux-x86_64.exe && \
+    mv protoc-gen-grpc-java-1.28.1-linux-x86_64.exe /usr/local/bin/
+
+# Install glibc compatibility layer for applications requiring glibc
+RUN set -ex && \
+    apk -U upgrade && \
+    apk add libstdc++ curl ca-certificates bash curl && \
+    for pkg in glibc-${GLIBC_VERSION} glibc-bin-${GLIBC_VERSION} glibc-i18n-${GLIBC_VERSION}; do curl -sSL ${GLIBC_REPO}/releases/download/${GLIBC_VERSION}/${pkg}.apk -o /tmp/${pkg}.apk; done && \
+    apk add --allow-untrusted /tmp/*.apk && \
+    rm -v /tmp/*.apk && \
+    ( /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true ) && \
+    echo "export LANG=UTF-8" > /etc/profile.d/locale.sh && \
+    /usr/glibc-compat/sbin/ldconfig /lib /usr/glibc-compat/lib && \
+    apk del glibc-i18n && \
+    echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf
+
+# Copy libsodium library for cryptographic operations
+COPY libsodium.so /usr/local/lib/libsodium.so
+
+# End of Dockerfile

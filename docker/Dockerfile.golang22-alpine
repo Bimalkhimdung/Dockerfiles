@@ -1,0 +1,12 @@
+# Multi-stage Dockerfile for Golang applications
+# Base stage with Golang 1.22 on Alpine Linux
+FROM golang:1.22-alpine AS go-base
+
+# Install build tools and dependencies
+RUN apk add build-base
+
+# Install Git for dependency management
+RUN apk add --no-cache git
+
+# Install Make for build automation
+RUN apk add --no-cache make

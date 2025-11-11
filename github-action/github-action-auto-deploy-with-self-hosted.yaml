@@ -1,17 +1,27 @@
+# GitHub Actions Workflow: Deploy on Dev Environment
+# Builds and pushes Docker images to ECR, then deploys to dev environment using self-hosted runners
+
+# Workflow name
 name: Deploy On Dev Environment
+
+# Trigger when another workflow completes
 on:
   workflow_run:
     workflows: ["Build and Push to Private ECR"]
     types:
       - completed
+
 jobs:
+  # Job to build and push Docker image
   build-and-push:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout repository code
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Configure AWS credentials for ECR access
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
@@ -19,14 +29,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
+      # Log in to Amazon ECR
       - name: Log in to Private Amazon ECR
         run: |
           aws ecr get-login-password --region us-east-1 | \
           docker login --username AWS --password-stdin <aws-id>.dkr.ecr.us-east-1.amazonaws.com
+
+      # Determine release tag from release event
       - name: Determine tag from Release event
         if: ${{ github.event_name == 'release' }}
         run: echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
 
+      # Determine tag from latest tag for workflow_run
       - name: Determine tag from latest tag (workflow_run)
         if: ${{ github.event_name == 'workflow_run' }}
         uses: actions-ecosystem/action-get-latest-tag@v1
@@ -35,40 +49,50 @@ jobs:
           initial_version: v0.0.0
           with_initial_version: true
 
+      # Export latest tag to environment
       - name: Export latest tag to env
         if: ${{ github.event_name == 'workflow_run' }}
         run: echo "RELEASE_TAG=${{ steps.get-latest-tag.outputs.tag }}" >> $GITHUB_ENV
 
+      # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build Docker image with GitHub token
       - name: Build Docker image
         run: |
           docker build --build-arg GITHUB_TOKEN=${{ secrets.GIT_TOKEN }} -t <image-name> .
           docker tag <image-name>:latest <aws-id>.dkr.ecr.us-east-1.amazonaws.com/<image-name>:${{ env.RELEASE_TAG }}
 
+      # Push image to ECR
       - name: Push Docker image to Private ECR
         run: |
           docker push <aws-id>.dkr.ecr.us-east-1.amazonaws.com/<image-name>:${{ env.RELEASE_TAG }}
+
+  # Job to deploy to dev environment
   dev-deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: self-hosted
     steps:
+      # Checkout code with full history
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   
+          fetch-depth: 0
 
+      # Determine tag from release event
       - name: Determine tag from Release event
         if: ${{ github.event_name == 'release' }}
         run: echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
 
+      # Determine latest tag from git
       - name: Determine latest tag from git
         if: ${{ github.event_name == 'workflow_run' }}
         run: |
           TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
 
+      # Deploy to Kubernetes server via SSH
       - name: Deploy on Kubernetes server
         uses: appleboy/ssh-action@master
         with:
@@ -77,4 +101,4 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           script: |
             cd /home/ubuntu/echalan
-            ./upgrade-prod.sh echalanpublicui ${{ env.RELEASE_TAG }}
+            ./upgrade-prod.sh helm ${{ env.RELEASE_TAG }}
