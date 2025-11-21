@@ -6,8 +6,8 @@
 
 set -euo pipefail
 
-KAFKA_VERSION="3.8.0"
-SCALA_VERSION="2.13"
+KAFKA_VERSION="3.5.1"
+SCALA_VERSION="2.13-3.5.1"
 KAFKA_TGZ="kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz"
 DOWNLOAD_URL="https://downloads.apache.org/kafka/${KAFKA_VERSION}/${KAFKA_TGZ}"
 INSTALL_DIR="/opt/kafka"
