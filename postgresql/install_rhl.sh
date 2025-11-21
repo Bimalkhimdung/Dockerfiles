@@ -2,15 +2,15 @@
 # =============================================================================
 # One-command PostgreSQL 17 installer for RHEL 9 & RHEL 8
 # Run with: sudo bash this-script.sh
-# sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Bimalkhimdung/devops-files/new/main)"
+# sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Bimalkhimdung/devops-files/blob/main/postgresql/install_rhl.sh)"
 # =============================================================================
 
 set -euo pipefail
 
 # -------------------------- CONFIG (change if you want) ----------------------
 POSTGRES_VERSION=17                  # 17 is latest stable Nov 2025
-POSTGRES_PASSWORD="MySecurePass123"  # ← CHANGE THIS IN PRODUCTION!
-ALLOW_REMOTE=false                   # Set true if you want connections from other machines
+POSTGRES_PASSWORD="postgres"  # ← CHANGE THIS IN PRODUCTION!
+ALLOW_REMOTE=true                  # Set true if you want connections from other machines
 # -----------------------------------------------------------------------------
 
 echo "Installing PostgreSQL $POSTGRES_VERSION on RHEL..."
@@ -44,15 +44,6 @@ if [[ "$ALLOW_REMOTE" == true ]]; then
     sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /var/lib/pgsql/${POSTGRES_VERSION}/data/postgresql.conf
     echo "host    all             all             0.0.0.0/0            md5" >> /var/lib/pgsql/${POSTGRES_VERSION}/data/pg_hba.conf
     systemctl restart postgresql-${POSTGRES_VERSION}
-fi
-
-# 8. Open firewall (or skip) firewall port 5432
-if systemctl is-active --quiet firewalld; then
-    echo "Opening port 5432 in firewall..."
-    firewall-cmd --permanent --add-port=5432/tcp
-    firewall-cmd --reload
-else
-    echo "Firewall is disabled – skipping port opening"
 fi
 
 # 9. Final message
