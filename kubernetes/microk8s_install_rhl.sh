@@ -7,7 +7,7 @@
 # =============================================================================
 # =============================================================================
 # Run command  externally
-# sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/cgrates/public-scripts/main/install-microk8s-rhel.sh)"
+# sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Bimalkhimdung/devops-files/blob/main/kubernetes/microk8s_install_rhl.sh)"
 # =============================================================================
 
 set -euo pipefail
