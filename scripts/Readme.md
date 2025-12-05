@@ -10,3 +10,7 @@ curl -fsSL https://raw.githubusercontent.com/Bimalkhimdung/devops-files/main/scr
 ```
 curl -fsSL https://raw.githubusercontent.com/Bimalkhimdung/devops-files/main/scripts/kubectl.sh | bash
 ```
+## Install terraform in linux with terminal
+```
+curl -fsSL https://raw.githubusercontent.com/Bimalkhimdung/devops-files/main/scripts/terrraform.sh | bash
+```
