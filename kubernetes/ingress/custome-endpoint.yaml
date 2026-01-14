@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: custome-ingress
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: abc.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: apiservice
+            port:
+              number: 9000
+
+      - path: /v1/login
+        pathType: Prefix
+        backend:
+          service:
+            name: loginservice
+            port:
+              number: 9000
