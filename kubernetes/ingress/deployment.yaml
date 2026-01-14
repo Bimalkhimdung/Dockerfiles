@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ingress-nginx
+  template:
+    metadata:
+      labels:
+        app: ingress-nginx
+    spec:
+      serviceAccountName: ingress-nginx
+      containers:
+      - name: controller
+        image: registry.k8s.io/ingress-nginx/controller:v1.10.1
+        args:
+          - /nginx-ingress-controller
+          - --ingress-class=nginx
+          - --watch-ingress-without-class=true
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+        ports:
+          - name: http
+            containerPort: 80
