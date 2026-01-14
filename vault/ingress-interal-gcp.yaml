@@ -1,0 +1,70 @@
+---
+# ManagedCertificate for Google-managed SSL
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: vault-cert
+  namespace: vault
+spec:
+  domains:
+    - vault.abc.com
+
+---
+# BackendConfig for health checks and connection settings
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: vault-backend-config
+  namespace: vault
+spec:
+  healthCheck:
+    checkIntervalSec: 10
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /v1/sys/health?standbyok=true
+    port: 8200
+  connectionDraining:
+    drainingTimeoutSec: 60
+  timeoutSec: 30
+
+---
+# FrontendConfig for HTTPS redirect
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: vault-frontend-config
+  namespace: vault
+spec:
+  redirectToHttps:
+    enabled: false
+      #responseCodeName: "MOVED_PERMANENTLY_DEFAULT"
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vault-ingress
+  namespace: vault
+  annotations:
+    kubernetes.io/ingress.class: "gce-internal"
+    cloud.google.com/load-balancer-type: "Internal"
+   # First get the static internal ip with the command
+   # gcloud compute addresses create vault-internal-ip --region=us-west1 --subnet=your-private-subnet --purpose=SHARED_LOADBALANCER_VIP
+    kubernetes.io/ingress.regional-static-ip-name: "vault-internal-ip"
+    networking.gke.io/v1beta1.FrontendConfig: "vault-frontend-config"
+    cloud.google.com/backend-config: '{"default": "vault-backend-config"}'
+spec:
+  rules:
+    - host: vault.abc.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vault
+                port:
+                  number: 8200
