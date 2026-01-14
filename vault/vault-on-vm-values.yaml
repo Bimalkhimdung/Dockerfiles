@@ -1,0 +1,10 @@
+global:
+  enabled: true
+  tlsDisable: true
+
+injector:
+  enabled: true   # disable until Vault is stable
+  externalVaultAddr: http://server-ip:8200
+
+server:
+  enabled: false
