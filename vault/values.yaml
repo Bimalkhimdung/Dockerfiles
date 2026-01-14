@@ -1,0 +1,33 @@
+global:
+  enabled: true
+
+ui:
+  enabled: true
+
+server:
+  ha:
+    enabled: true
+    replicas: 1
+    raft:
+      enabled: true
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: "your pvc storage class"
+  resources:
+    limits:
+      cpu: "1"
+      memory: "100Mi"
+    requests:
+      cpu: "80m"
+      memory: "100Mi"
+
+  livenessProbe:
+    enabled: false
+    initialDelaySeconds: 240
+    path: "/v1/sys/health?standbyok=true"
+
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
