@@ -1,0 +1,66 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  annotations:
+    eck.k8s.elastic.co/license: basic
+    eck.k8s.elastic.co/orchestration-hints: '{"no_transient_settings":true,"service_accounts":true,"desired_nodes":{"version":3,"hash":"1170676394"}}'
+    elasticsearch.k8s.elastic.co/cluster-uuid: kWzk_MW3SzK3lzJkgZJfmg
+    meta.helm.sh/release-name: eck-stack-with-logstash
+    meta.helm.sh/release-namespace: monitoring
+  labels:
+    app.kubernetes.io/instance: eck-stack-with-logstash
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: eck-elasticsearch
+    helm.sh/chart: eck-elasticsearch-0.17.0
+  name: elasticsearch
+  namespace: monitoring
+spec:
+  auth: {}
+  http:
+    service:
+      metadata: {}
+      spec: {}
+    tls:
+      certificate: {}
+  monitoring:
+    logs: {}
+    metrics: {}
+  nodeSets:
+  - config:
+      node.store.allow_mmap: false
+    count: 1
+    name: default-v2
+    podTemplate:
+      metadata: {}
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            limits:
+              memory: 4Gi
+            requests:
+              cpu: "1"
+              memory: 4Gi
+        nodeSelector:
+          node-type: high-resource
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 25Gi
+        storageClassName: gp2
+  remoteClusterServer: {}
+  transport:
+    service:
+      metadata: {}
+      spec: {}
+    tls:
+      certificate: {}
+      certificateAuthorities: {}
+  updateStrategy:
+    changeBudget: {}
+  version: 9.2.0
