@@ -1,9 +1,10 @@
 name: Daily Commit Summary
 
 # Sends a daily email digest of everything committed/pushed to this repo in
-# the last 24 hours, written by an external Ollama Gemma model reached over
-# HTTPS. Runs on GitHub-hosted runners — no self-hosted infrastructure
-# needed, just outbound network access to your Ollama endpoint.
+# the last 24 hours, written by an external Ollama model (deepseek-r1:14b by
+# default) reached over HTTPS. Runs on GitHub-hosted runners — no
+# self-hosted infrastructure needed, just outbound network access to your
+# Ollama endpoint.
 #
 # Required repo secrets (Settings -> Secrets and variables -> Actions -> Secrets):
 #   OLLAMA_URL     e.g. https://ollama.example.com  (no trailing slash)
@@ -15,8 +16,8 @@ name: Daily Commit Summary
 #   MAIL_TO        where the summary should be sent (can be same as MAIL_FROM)
 #
 # Optional repo variable (Settings -> Secrets and variables -> Actions -> Variables):
-#   OLLAMA_MODEL   defaults to "gemma2:9b" if not set. Use a smaller model
-#                  like "gemma2:2b" for a faster response.
+#   OLLAMA_MODEL   defaults to "deepseek-r1:14b" if not set. Override here to
+#                  use a different model without editing this file.
 #
 # Note: this assumes OLLAMA_URL has no auth in front of it. If you later put
 # it behind a reverse proxy with a token or basic auth, say so and the
@@ -62,7 +63,7 @@ jobs:
             exit 1
           fi
 
-      - name: Ensure Gemma model is available on the remote server
+      - name: Ensure Ollama model is available on the remote server
         env:
           OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
           OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'deepseek-r1:14b' }}
@@ -81,6 +82,7 @@ jobs:
           SINCE: ${{ github.event.inputs.since || '24 hours ago' }}
           OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'deepseek-r1:14b' }}
           OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
+          TODAY: ${{ env.TODAY }}
         run: bash .github/scripts/daily_summary.sh
 
       - name: Send email summary
@@ -91,7 +93,7 @@ jobs:
           server_port: ${{ secrets.MAIL_PORT }}
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "Daily commit summary for ${{ github.repository }} — ${{ env.TODAY }}"
+          subject: ${{ steps.summary.outputs.subject }}
           to: ${{ secrets.MAIL_TO }}
           from: ${{ secrets.MAIL_FROM }}
           body: file://summary_body.txt
