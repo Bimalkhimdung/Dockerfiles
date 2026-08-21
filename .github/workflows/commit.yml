@@ -1,0 +1,97 @@
+name: Daily Commit Summary
+
+# Sends a daily email digest of everything committed/pushed to this repo in
+# the last 24 hours, written by an external Ollama Gemma model reached over
+# HTTPS. Runs on GitHub-hosted runners — no self-hosted infrastructure
+# needed, just outbound network access to your Ollama endpoint.
+#
+# Required repo secrets (Settings -> Secrets and variables -> Actions -> Secrets):
+#   OLLAMA_URL     e.g. https://ollama.example.com  (no trailing slash)
+#   MAIL_SERVER    e.g. smtp.gmail.com
+#   MAIL_PORT      e.g. 465
+#   MAIL_USERNAME  SMTP login (often your email address)
+#   MAIL_PASSWORD  SMTP password / app password
+#   MAIL_FROM      "From" address shown to you
+#   MAIL_TO        where the summary should be sent (can be same as MAIL_FROM)
+#
+# Optional repo variable (Settings -> Secrets and variables -> Actions -> Variables):
+#   OLLAMA_MODEL   defaults to "gemma2:9b" if not set. Use a smaller model
+#                  like "gemma2:2b" for a faster response.
+#
+# Note: this assumes OLLAMA_URL has no auth in front of it. If you later put
+# it behind a reverse proxy with a token or basic auth, say so and the
+# workflow/script can send those credentials too.
+
+on:
+  schedule:
+    # 08:00 Asia/Kathmandu (UTC+5:45) == 02:15 UTC. Adjust as needed;
+    # GitHub Actions cron is always in UTC.
+    - cron: '56 7 * * *'
+  workflow_dispatch:
+    inputs:
+      since:
+        description: 'Time window to summarize (git --since syntax, e.g. "24 hours ago")'
+        required: false
+        default: '24 hours ago'
+
+permissions:
+  contents: read
+
+jobs:
+  daily-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set today's date
+        run: echo "TODAY=$(date +'%Y-%m-%d')" >> "$GITHUB_ENV"
+
+      - name: Verify external Ollama endpoint is reachable
+        env:
+          OLLAMA_URL: https://agent-api.doswall.com
+        run: |
+          if [ -z "${OLLAMA_URL}" ]; then
+            echo "::error::OLLAMA_URL secret is not set."
+            exit 1
+          fi
+          if ! curl -sf -m 20 "${OLLAMA_URL}/api/tags" > /dev/null; then
+            echo "::error::Could not reach ${OLLAMA_URL}/api/tags. Check the URL, that Ollama is running, and that it's reachable from GitHub-hosted runners (public HTTPS, no VPN-only access)."
+            exit 1
+          fi
+
+      - name: Ensure Gemma model is available on the remote server
+        env:
+          OLLAMA_URL: https://agent-api.doswall.com
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'deepseek-r1:14b' }}
+        run: |
+          if ! curl -s -m 20 "${OLLAMA_URL}/api/tags" | jq -e --arg m "$OLLAMA_MODEL" '.models[]?.name == $m' > /dev/null; then
+            echo "Model $OLLAMA_MODEL not found on the remote server, asking it to pull..."
+            curl -s -m 300 -X POST "${OLLAMA_URL}/api/pull" \
+              -H 'Content-Type: application/json' \
+              -d "$(jq -n --arg m "$OLLAMA_MODEL" '{name: $m, stream: false}')" \
+              || echo "::warning::Could not trigger a remote pull of $OLLAMA_MODEL. Make sure it's already pulled on the server."
+          fi
+
+      - name: Generate AI summary of recent commits
+        id: summary
+        env:
+          SINCE: ${{ github.event.inputs.since || '24 hours ago' }}
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'deepseek-r1:14b' }}
+          OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
+        run: bash .github/scripts/daily_summary.sh
+
+      - name: Send email summary
+        if: always() && steps.summary.outcome == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: live.smtp.mailtrap.io
+          server_port: 578
+          username: api
+          password: 2cb871d87eb84ba5b66fc8edb798314a
+          subject: "Daily commit summary for ${{ github.repository }} — ${{ env.TODAY }}"
+          to: bimalkhimdung@gmail.com
+          from: info@nepsesignal.com
+          body: file://summary_body.txt
