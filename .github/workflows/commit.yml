@@ -65,7 +65,7 @@ jobs:
       - name: Ensure Gemma model is available on the remote server
         env:
           OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
-          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'gemma2:9b' }}
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'deepseek-r1:14b' }}
         run: |
           if ! curl -s -m 20 "${OLLAMA_URL}/api/tags" | jq -e --arg m "$OLLAMA_MODEL" '.models[]?.name == $m' > /dev/null; then
             echo "Model $OLLAMA_MODEL not found on the remote server, asking it to pull..."
@@ -79,7 +79,7 @@ jobs:
         id: summary
         env:
           SINCE: ${{ github.event.inputs.since || '24 hours ago' }}
-          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'gemma2:9b' }}
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'deepseek-r1:14b' }}
           OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
         run: bash .github/scripts/daily_summary.sh
 
