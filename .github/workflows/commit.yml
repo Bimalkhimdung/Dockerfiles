@@ -26,7 +26,7 @@ on:
   schedule:
     # 08:00 Asia/Kathmandu (UTC+5:45) == 02:15 UTC. Adjust as needed;
     # GitHub Actions cron is always in UTC.
-    - cron: '56 7 * * *'
+    - cron: '15 2 * * *'
   workflow_dispatch:
     inputs:
       since:
@@ -51,7 +51,7 @@ jobs:
 
       - name: Verify external Ollama endpoint is reachable
         env:
-          OLLAMA_URL: https://agent-api.doswall.com
+          OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
         run: |
           if [ -z "${OLLAMA_URL}" ]; then
             echo "::error::OLLAMA_URL secret is not set."
@@ -64,8 +64,8 @@ jobs:
 
       - name: Ensure Gemma model is available on the remote server
         env:
-          OLLAMA_URL: https://agent-api.doswall.com
-          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'deepseek-r1:14b' }}
+          OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'gemma2:9b' }}
         run: |
           if ! curl -s -m 20 "${OLLAMA_URL}/api/tags" | jq -e --arg m "$OLLAMA_MODEL" '.models[]?.name == $m' > /dev/null; then
             echo "Model $OLLAMA_MODEL not found on the remote server, asking it to pull..."
@@ -79,7 +79,7 @@ jobs:
         id: summary
         env:
           SINCE: ${{ github.event.inputs.since || '24 hours ago' }}
-          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'deepseek-r1:14b' }}
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'gemma2:9b' }}
           OLLAMA_URL: ${{ secrets.OLLAMA_URL }}
         run: bash .github/scripts/daily_summary.sh
 
@@ -87,11 +87,11 @@ jobs:
         if: always() && steps.summary.outcome == 'success'
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: live.smtp.mailtrap.io
-          server_port: 578
-          username: api
-          password: 2cb871d87eb84ba5b66fc8edb798314a
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
           subject: "Daily commit summary for ${{ github.repository }} — ${{ env.TODAY }}"
-          to: bimalkhimdung@gmail.com
-          from: info@nepsesignal.com
+          to: ${{ secrets.MAIL_TO }}
+          from: ${{ secrets.MAIL_FROM }}
           body: file://summary_body.txt
