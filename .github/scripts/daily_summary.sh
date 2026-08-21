@@ -16,8 +16,11 @@
 set -euo pipefail
 
 SINCE="${SINCE:-24 hours ago}"
-MODEL="${OLLAMA_MODEL:-gemma2:9b}"
-OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
+MODEL="${OLLAMA_MODEL:-deepseek-r1:14b}"
+# Fallback only — the workflow always passes OLLAMA_URL in from the
+# OLLAMA_URL repo secret, so this default is only hit if you run this
+# script by hand without setting that env var.
+OLLAMA_URL="${OLLAMA_URL:-https://agent-api.doswall.com}"
 REPO_NAME="${GITHUB_REPOSITORY:-$(basename "$(pwd)")}"
 TODAY="${TODAY:-$(date +'%Y-%m-%d')}"
 
