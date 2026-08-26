@@ -24,10 +24,10 @@ name: Daily Commit Summary
 # workflow/script can send those credentials too.
 
 on:
-  schedule:
+  #schedule:
     # 08:00 Asia/Kathmandu (UTC+5:45) == 02:15 UTC. Adjust as needed;
     # GitHub Actions cron is always in UTC.
-    - cron: '15 2 * * *'
+    #- cron: '15 2 * * *'
   workflow_dispatch:
     inputs:
       since:
