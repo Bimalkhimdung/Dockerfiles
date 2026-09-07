@@ -1,0 +1,12 @@
+name: redis-dragonflydb
+
+services:
+  redis:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    container_name: redis
+    command:
+      - --requirepass=redis321
+      - --maxclients=100000
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
